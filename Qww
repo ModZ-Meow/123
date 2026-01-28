@@ -1,0 +1,102 @@
+--================ TPWALK + AUTOJUMP (FINAL FULL) =================--
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LP = Players.LocalPlayer
+
+--================ CONFIG =================--
+_G.TPEnabled = false
+_G.TPSpeed = 200 -- 1 -> 1000
+
+--================ UI =================--
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "TPWalkUI"
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 180, 0, 120)
+frame.Position = UDim2.new(0.02, 0, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(22,22,22)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local stroke = Instance.new("UIStroke", frame)
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(70,70,70)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,20)
+title.Text = "TPWALK"
+title.TextSize = 12
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+
+local toggle = Instance.new("TextButton", frame)
+toggle.Size = UDim2.new(1,-10,0,26)
+toggle.Position = UDim2.new(0,5,0,25)
+toggle.Text = "OFF"
+toggle.TextSize = 13
+toggle.BackgroundColor3 = Color3.fromRGB(140,40,40)
+toggle.TextColor3 = Color3.new(1,1,1)
+
+toggle.MouseButton1Click:Connect(function()
+	_G.TPEnabled = not _G.TPEnabled
+	toggle.Text = _G.TPEnabled and "ON" or "OFF"
+	toggle.BackgroundColor3 = _G.TPEnabled
+		and Color3.fromRGB(40,140,40)
+		or Color3.fromRGB(140,40,40)
+end)
+
+local speedBox = Instance.new("TextBox", frame)
+speedBox.Size = UDim2.new(1,-10,0,26)
+speedBox.Position = UDim2.new(0,5,0,65)
+speedBox.Text = tostring(_G.TPSpeed)
+speedBox.PlaceholderText = "Speed (1 - 1000)"
+speedBox.TextSize = 13
+speedBox.BackgroundColor3 = Color3.fromRGB(35,35,35)
+speedBox.TextColor3 = Color3.new(1,1,1)
+
+speedBox.FocusLost:Connect(function()
+	local v = tonumber(speedBox.Text)
+	if v then
+		_G.TPSpeed = math.clamp(v, 1, 1000)
+		speedBox.Text = tostring(_G.TPSpeed)
+	end
+end)
+
+--================ CORE =================--
+RunService.Heartbeat:Connect(function(dt)
+	if not _G.TPEnabled then return end
+
+	local char = LP.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hrp or not hum then return end
+
+	-- AUTO JUMP (LUÔN BẬT)
+	if hum.FloorMaterial ~= Enum.Material.Air then
+		hum:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+
+	-- HƯỚNG CAMERA
+	local cam = workspace.CurrentCamera
+	local dir = Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z)
+	if dir.Magnitude < 0.1 then return end
+	dir = dir.Unit
+
+	-- BƯỚC SIÊU NHỎ (TPWALK)
+	local step = dir * (_G.TPSpeed * dt * 0.15)
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {char}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+
+	-- CHỐNG XUYÊN + SLIDE TƯỜNG
+	local hit = workspace:Raycast(hrp.Position, step, params)
+	if hit then
+		local n = hit.Normal
+		step = step - n * step:Dot(n)
+	end
+
+	hrp.CFrame = hrp.CFrame + step
+end)
